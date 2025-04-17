@@ -15,8 +15,6 @@ All structure files will have '.log' extension'''
         # rct opt   -- this will have Natoms - x number of atoms be lower in energy than frag 
         # esp   -- this will be a text file, that will be originally a .99 file
 
-#py installer to convert to executable
-
 def getData(directory):
     ''' only '.log','.99' or'.txt' files will be accepted
     '.99' files will be converted to '.txt' files
@@ -27,10 +25,7 @@ def getData(directory):
     OUTPUT: Dictionary with each file name as keys. Values will be a list containing number of atoms, single point energy and dispersion energy
     it will be organized in a way in which each even index will be the label of the numerical value and each odd index will be the numerical value
     '''
-    #path = Path(directory)
-    #os.chdir(path)
-    #working_directory = os.getcwd()
-    files = os.listdir(directory) #why wont this work!!!
+    files = os.listdir(directory)
     working_files = []
     data = {}
     os.chdir(directory)
