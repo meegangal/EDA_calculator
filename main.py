@@ -234,9 +234,9 @@ def makeDatasheet():
 
 
 
-spath = os.path.join("/Users","meegangalante","Downloads","python","EDA_calculator","S_TS")
-rpath = os.path.join("/Users","meegangalante","Downloads","python","EDA_calculator","R_TS")
+#spath = os.path.join("/Users","meegangalante","Downloads","python","EDA_calculator","S_TS")
+#rpath = os.path.join("/Users","meegangalante","Downloads","python","EDA_calculator","R_TS")
 
-R_EDA = getEDA(rpath)
-S_EDA = getEDA(spath)
-print(getDifference(rpath,spath))
+#R_EDA = getEDA(rpath)
+#S_EDA = getEDA(spath)
+#print(getDifference(rpath,spath))
