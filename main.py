@@ -213,6 +213,20 @@ def calculateESP(chargefile, espfile):
     final_esp = sum(product)
     return final_esp
 
+def getDifference(path1, path2):
+    ''' will calculate the difference between two EDA
+    INPUT: directory paths of both EDA files
+    OUTPUT: dictionary with the difference between each value in both EDAs
+    note: EDA_relative = EDA_minor - EDA_major'''
+    EDA1 = getEDA(path1)
+    EDA2 = getEDA(path2)
+    if len(EDA1) == len(EDA2):
+        difference = {key: EDA1[key] - EDA2.get(key, 0) for key in EDA1}
+    else:
+        print('ERROR: Mismatched number of values')
+        difference = {}
+    return difference
+    
 def makeDatasheet():
     #pandas??
     pass
@@ -225,5 +239,4 @@ rpath = os.path.join("/Users","meegangalante","Downloads","python","EDA_calculat
 
 R_EDA = getEDA(rpath)
 S_EDA = getEDA(spath)
-difference = {key: R_EDA[key] - S_EDA.get(key, 0) for key in R_EDA}
-print(difference)
+print(getDifference(rpath,spath))
