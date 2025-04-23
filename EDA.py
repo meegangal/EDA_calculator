@@ -1,29 +1,41 @@
-import os
-import sys
+#!/usr/bin/python
+from __future__ import print_function, absolute_import
+# ^ use this if using on remote computer via ssh
 
-''' Use this in the command line by writing: 
-$python EDA.py finalEDA "/Users/directory/of/your/files1" "/Users/directory/of/your/files2"
-This will give you EDAs for each TS, and the difference between them.
+###########################################################################################################
+#                                           EDA.py                                                        #  
+# Python script written by Meegan L. Galante to calculate energy decompositions                           #
+# of a transition state from a Gaussian transition state search. Inorder to calculate                     #
+# EDA using this script, a directory must be created containing only required EDA files.                  #
+#                                                                                                         #
+# The EDA files required are single point energy calculations for the TS,                                 #  
+# for fragment structures from the TS structure for each molecule involved,                               #  
+# for optimized structures for each molecule and the fort.99 output                                       #  
+# file from an electrostatic potential calculation. '.log' files with multiple linked jobs                #
+# can be used as long as the final calculation is the single point energy calculation                     #                                  
+#                                                                                                         #
+# #########################################################################################################
+#                                                                                                         #  
+# Run this script from the command line by writing:                                                       #  
+#    $EDA.py getEDA "/Users/directory/of/your/files1"                                                     #  
+# This will give you EDA values for the TS in that directory                                              #  
+# If no directory is given, will give you EDA of current working directory                                #  
+#     $EDA.py finalEDA "/Users/directory/of/your/files1" "/Users/directory/of/your/files2"                #
+# This will give you EDA values for each TS and also give you the difference between them                 #  
+# If no directory is given, will give you EDA and difference of directories in current working directory  #  
+#       - best way to use is by making a directory for the EDA that contains                              #  
+#         directories for the two TS' you are comparing and running the 'EDA.py finalEDA' command         #
+#       - if using on local computer 'python' required prior to command                                   #
+#       - if using on local computer, must be in same directory as script to run                          #    
+#                                                                                                         #  
+# Last modified April 23 2025                                                                             #  
+###########################################################################################################
 
-If you only want the EDA for one TS use:
-$python EDA.py getEDA "/Users/directory/of/your/files1"
+import os, sys
 
-You should have all your EDA log files along with the fort.99 from your 
-electro calculation in one individual directory with no other files for each TS. 
-For a bimolecular TS, 5 '.log' files and 1 fort.99 file. 
-You will need to have python downloaded.
-You will need to be in the directory that this script is in to run it. 
-'''
 def getData(directory):
     ''' only '.log','.99' or'.txt' files will be accepted
-    '.99' files will be converted to '.txt' files
-    Default will be current directory but can input a specific directory as an argument
-    This will omit all files that do not have '.log', or '.txt' extensions and parse required data for EDA.
-    Required data will be NAtoms from all files; single point energy and dispersion energy from each '.log' file
-    INPUT: Directory path containing all required files for EDA
-    OUTPUT: Dictionary with each file name as keys. Values will be a list containing number of atoms, single point energy and dispersion energy
-    it will be organized in a way in which each even index will be the label of the numerical value and each odd index will be the numerical value
-    '''
+    '.99' files will be converted to '.txt' files '''
 
     files = os.listdir(directory)
     working_files = []
@@ -43,9 +55,9 @@ def getData(directory):
             indices = []
             Normal = []
             for index, line in enumerate(lines):
-                if 'Normal' in line: #this truncates the file to only the last calculation in the .log file
-                    indices.append(index) # this could be unnecessary 
-                    Normal.append(line) # so if there are multiple calculations this will take the single poiint of the last single point
+                if 'Normal' in line:
+                    indices.append(index)
+                    Normal.append(line) 
             if len(indices) > 1:
                 lines = lines[indices[-2]:]
             for line in lines:
@@ -137,19 +149,19 @@ def getEDA(current_dir=os.getcwd()):
     for key, value in molecules.items():
         optimized.append(value[0])
         fragments.append(value[1])
-    EDA['dE'] = (TS[0] - sum(optimized))*627.51
+    EDA['dE:                '] = (TS[0] - sum(optimized))*627.5095
     # this is to get distortion energy 
     for key, value in molecules.items():
-        distortion = (value[1] - value[0])*627.51
+        distortion = (value[1] - value[0])*627.5095
         dist.append(distortion)
-        EDA[key + ' distortion'] = distortion
-    EDA['Total Distortion'] = sum(dist)
+        EDA[key + ' distortion:   '] = distortion
+    EDA['Total Distortion:  '] = sum(dist)
     #this is to get interaction energy
-    interaction = (TS[0] - sum(fragments))*627.51
-    EDA['Interaction Energy'] = interaction
+    interaction = (TS[0] - sum(fragments))*627.5095
+    EDA['Interaction Energy:'] = interaction
     #this is to get dispersion energy
-    dispersion = (TS[1] - sum(frag_dispersion))*627.51
-    EDA['Dispersion Energy'] = dispersion
+    dispersion = (TS[1] - sum(frag_dispersion))*627.5095
+    EDA['Dispersion Energy: '] = dispersion
     #this is to get ESP 
     espfile = espinfo[0]
     chargefile = []
@@ -157,12 +169,13 @@ def getEDA(current_dir=os.getcwd()):
         if data[file[0]][1] == espinfo[2]:
             chargefile.append(file[0])
     chargefile.append(espinfo[2])
-    dESP = calculateESP(chargefile, espfile)*627.51
-    EDA['dESP'] = dESP
+    dESP = calculateESP(chargefile, espfile)*627.5095
+    EDA['dESP:              '] = dESP
     ERCT = interaction - (dispersion + dESP)
-    EDA['ERCT'] = ERCT
-    print(f'-\nEDA of {TS_name}')
-    print(EDA)
+    EDA['ERCT:              '] = ERCT
+    print(f'------------------------------------------------------\nEDA of {TS_name}')
+    for key, value in EDA.items():
+        print(f'{key}   {value}')
     return EDA
 
 def OrganizeCharge(fname):
@@ -223,12 +236,22 @@ def finalEDA(path_1, path_2):
     else:
         print('ERROR: Mismatched number of values')
         difference = {}
-    print('-\nDifference:')
-    print(difference)
+    print('------------------------------------------------------\nDifference:')
+    for key, value in difference.items():
+        print(f'{key}   {value}')
+    print('------------------------------------------------------')
     return difference 
+
 
 #this will make it so you can run script from the command line
 if __name__ == '__main__':
-    args = sys.argv[2:]
-    globals()[sys.argv[1]](*args)
+    if len(sys.argv) > 2:
+        args = sys.argv[2:]
+        globals()[sys.argv[1]](*args)
+    elif sys.argv[1] == 'finalEDA':
+        args = [os.getcwd() + '/' + file for file in os.listdir(os.getcwd())]
+        globals()[sys.argv[1]](*args)
+    else:
+        globals()[sys.argv[1]]()
+
 
