@@ -1,6 +1,6 @@
 #!/usr/bin/python
 from __future__ import print_function, absolute_import
-# ^ use this if using on remote computer via ssh
+# ^ include these two lines if using on remote computer via ssh
 
 ###########################################################################################################
 #                                           EDA.py                                                        #  
@@ -145,9 +145,14 @@ def getEDA(current_dir=os.getcwd()):
         molecules[key] = sorted(molecules[key])
     frag_files = []
     for mol in molecules.keys():
-        if len(molecules[mol]) != 2:
+        if len(molecules[mol]) > 2:
             print('---------------------------------------------------------------------')
             print(f'**** ERROR: More files than expected for {mol} - cannot proceed ****')
+            print('---------------------------------------------------------------------')
+            sys.exit()
+        elif len(molecules[mol]) < 2:
+            print('---------------------------------------------------------------------')
+            print(f'******** ERROR: Missing file(s) for {mol} -- cannot proceed ********')
             print('---------------------------------------------------------------------')
             sys.exit()
         else:
