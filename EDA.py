@@ -42,14 +42,14 @@ def getData(directory):
     data = {}
     os.chdir(directory)
     for file in files:
-        if file[-2:] == '99':
+        if file[-3:] == '.99':
             new_file_name = file[:-2] + 'txt'
             os.rename(file, new_file_name)
             working_files.append(new_file_name)
-        elif file[-3:] == 'log' or file[-3:] == 'txt':
+        elif file[-4:] == '.log' or file[-4:] == '.txt':
             working_files.append(file)
     for file in working_files:
-        if file[-3:] == 'log':
+        if file[-4:] == '.log':
             with open(file) as f:
                 lines = f.readlines()
             indices = []
@@ -68,7 +68,7 @@ def getData(directory):
             data[file].extend(['NAtoms', NAtoms])
             sp, disp = getEnergy(file)
             data[file].extend(['Single Point Energy', sp, 'Dispersion', disp])
-        if file[-3:] =='txt':
+        if file[-4:] =='.txt':
             with open(file) as f:
                 lines = f.readlines()
             NAtoms = int(len(lines)/2)
@@ -81,7 +81,7 @@ def getEnergy(filename):
         INPUT: File name
         OUTPUT: Tuple containing single point energy and disperion energy'''
     singlepoint = 'ERROR'
-    if filename[-3:] == 'log':
+    if filename[-4:] == '.log':
         with open(filename) as f:
             lines = f.readlines()
         for line in lines:
@@ -108,13 +108,18 @@ def getEDA(current_dir=os.getcwd()):
             espinfo.extend(data[key])
         NAtoms.append(data[key][1])
     del data[espinfo[0]]
+    if NAtoms.count(max(NAtoms)) > 1:
+        print('---------------------------------------------------------------------')
+        print('******************** You have too many TS files! ********************')
+        print('---------------------------------------------------------------------')
+        sys.exit()
     NAtoms = list(set(NAtoms))
     TS_n = max(NAtoms)
     del NAtoms[NAtoms.index(TS_n)]
     molecules = {}
     for i in range(len(NAtoms)):
-        molecules.setdefault('mol{0}'.format(i+1), [])
-        molecules['mol{0}'.format(i+1)].append(NAtoms[i])
+        molecules.setdefault('mol{0}({1} atoms)'.format(i+1, NAtoms[i]), [])
+        molecules['mol{0}({1} atoms)'.format(i+1, NAtoms[i])].append(NAtoms[i])
     TS = []
     TS_name = ""
     #TS is list with first element as single point and second element as dispersion
@@ -130,15 +135,25 @@ def getEDA(current_dir=os.getcwd()):
                 TS.append(data[key][5])
                 TS_name = key
     else:
-        print('Number of atoms do not add up to TS structure!')
+        print('---------------------------------------------------------------------')
+        print('********** Number of atoms do not add up to TS structure! ***********')
+        print('---------------------------------------------------------------------')
+        sys.exit()
+    
     for key, value in molecules.items():
         del molecules[key][0]
-        molecules[key] = sorted(molecules[key]) 
+        molecules[key] = sorted(molecules[key])
     frag_files = []
     for mol in molecules.keys():
-        file = [key for key, value in data.items() if molecules[mol][1] in value]
-        frag_dispersion.append(data[file[0]][5])
-        frag_files.append(file)
+        if len(molecules[mol]) != 2:
+            print('---------------------------------------------------------------------')
+            print(f'**** ERROR: More files than expected for {mol} - cannot proceed ****')
+            print('---------------------------------------------------------------------')
+            sys.exit()
+        else:
+            file = [key for key, value in data.items() if molecules[mol][1] in value]
+            frag_dispersion.append(data[file[0]][5])
+            frag_files.append(file)
     #this sorts so that first term is the optimized struct and second is fragment
     #distortion will be frag - opt, or index1 - index0
     EDA = {}
@@ -149,19 +164,35 @@ def getEDA(current_dir=os.getcwd()):
     for key, value in molecules.items():
         optimized.append(value[0])
         fragments.append(value[1])
-    EDA['dE:                '] = (TS[0] - sum(optimized))*627.5095
+    dE = (TS[0] - sum(optimized))*627.5095
+    if dE < 0:
+        EDA['dE:                          '] = dE
+    else:
+        EDA['dE:                           '] = dE
     # this is to get distortion energy 
     for key, value in molecules.items():
         distortion = (value[1] - value[0])*627.5095
         dist.append(distortion)
-        EDA[key + ' distortion:   '] = distortion
-    EDA['Total Distortion:  '] = sum(dist)
+        if distortion < 0:
+            EDA[key + ' distortion:   '] = distortion
+        else:
+            EDA[key + ' distortion:    '] = distortion
+    if sum(dist) < 0:
+        EDA['Total Distortion:            '] = sum(dist)
+    else:
+        EDA['Total Distortion:             '] = sum(dist)
     #this is to get interaction energy
     interaction = (TS[0] - sum(fragments))*627.5095
-    EDA['Interaction Energy:'] = interaction
+    if interaction < 0:
+        EDA['Interaction Energy:          '] = interaction
+    else:
+        EDA['Interaction Energy:           '] = interaction
     #this is to get dispersion energy
     dispersion = (TS[1] - sum(frag_dispersion))*627.5095
-    EDA['Dispersion Energy: '] = dispersion
+    if dispersion < 0:
+        EDA['Dispersion Energy:           '] = dispersion
+    else: 
+        EDA['Dispersion Energy:            '] = dispersion
     #this is to get ESP 
     espfile = espinfo[0]
     chargefile = []
@@ -170,13 +201,19 @@ def getEDA(current_dir=os.getcwd()):
             chargefile.append(file[0])
     chargefile.append(espinfo[2])
     dESP = calculateESP(chargefile, espfile)*627.5095
-    EDA['dESP:              '] = dESP
+    if dESP < 0:
+        EDA['dESP:                        '] = dESP
+    else:
+        EDA['dESP:                         '] = dESP
     ERCT = interaction - (dispersion + dESP)
-    EDA['ERCT:              '] = ERCT
-    print(f'------------------------------------------------------\nEDA of {TS_name}')
+    if ERCT < 0:
+        EDA['ERCT:                        '] = ERCT
+    else:
+        EDA['ERCT:                         '] = ERCT
+    print(f'---------------------------------------------------------------------\nEDA of {TS_name}')
     for key, value in EDA.items():
         print(f'{key}   {value}')
-    return EDA
+    return EDA, TS_name
 
 def OrganizeCharge(fname):
     ''' This will parse the charge information for each atom in the reactant or whichever molecule matches the fort.99 file
@@ -184,6 +221,7 @@ def OrganizeCharge(fname):
     OUTPUT: list of charges, len(charges) should be same length of lines in fort.99 file'''
     atom_type = []
     charge = []
+    pop = []
     with open(fname[0]) as f:
         lines = f.readlines()
     index = []
@@ -191,8 +229,13 @@ def OrganizeCharge(fname):
         row = line.split()
         if 'Summary' in row and 'Natural' in row:
             index = lines.index(line)
-    lines = lines[index+6:index+fname[1]+6]
-    for line in lines:
+    pop = lines[index+6:index+fname[1]+6]
+    if len(pop) == 0:
+        print('---------------------------------------------------------------------')
+        print('****** You need a Natural Bond Orbital analysis! hint: pop=nbo ******')
+        print('---------------------------------------------------------------------')
+        sys.exit()
+    for line in pop:
         row = line.split()
         atom_type.append(row[0])
         charge.append(float(row[2]))
@@ -229,17 +272,19 @@ def finalEDA(path_1, path_2):
     INPUT: directory paths of both EDA files
     OUTPUT: dictionary with the difference between each value in both EDAs
     note: EDA_relative = EDA_minor - EDA_major'''
-    EDA1 = getEDA(path_1)
-    EDA2 = getEDA(path_2)
+    EDA1, TS1_name = getEDA(path_1)
+    EDA2, TS2_name = getEDA(path_2)
     if len(EDA1) == len(EDA2):
-        difference = {key: EDA1[key] - EDA2.get(key, 0) for key in EDA1}
+        difference = {key: EDA1[key] - EDA2.get(key) for key in EDA1}
     else:
-        print('ERROR: Mismatched number of values')
+        print('---------------------------------------------------------------------')
+        print('***************** ERROR: Mismatched number of values ****************')
+        print('---------------------------------------------------------------------')
+        sys.exit()
         difference = {}
-    print('------------------------------------------------------\nDifference:')
+    print(f'---------------------------------------------------------------------\nDifference ({TS1_name} - {TS2_name}):')
     for key, value in difference.items():
         print(f'{key}   {value}')
-    print('------------------------------------------------------')
     return difference 
 
 
@@ -249,9 +294,23 @@ if __name__ == '__main__':
         args = sys.argv[2:]
         globals()[sys.argv[1]](*args)
     elif sys.argv[1] == 'finalEDA':
-        args = [os.getcwd() + '/' + file for file in os.listdir(os.getcwd())]
-        globals()[sys.argv[1]](*args)
+        args = []
+        directories = [os.getcwd() + '/' + file for file in os.listdir(os.getcwd()) if os.path.isdir(os.getcwd() + '/' + file)]
+        for directory in directories:
+            workable_files = [file for file in os.listdir(directory) if file[-4:] == '.log' or file[-4:] == '.txt' or file[-3:] == '.99']
+            if len(workable_files) == 6:
+                args.append(directory)
+        if len(args) == 2:
+            globals()[sys.argv[1]](*args)
+        elif len(args) > 2:
+            print('---------------------------------------------------------------------')
+            print('************ Ahh! Too many directories! I can\'t choose! ************')
+        else:
+            print('---------------------------------------------------------------------')
+            print('********************** Not enough directories! **********************')
+            
     else:
         globals()[sys.argv[1]]()
+    print('---------------------------------------------------------------------')
 
 
